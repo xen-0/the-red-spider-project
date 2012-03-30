@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+# Copyright 2012 Neil Forrester
+# Licensed under the Red Spider Project License.
+# See the License.txt that shipped with your copy of this software for details.
+
 import os
 import sys
 

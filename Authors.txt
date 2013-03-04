@@ -2,5 +2,6 @@ The Red Spider Project -- Authors.txt
 
 (Please add your name at the top.)
 
+Charles Mita
 Harry Gilles
 Julian Gonggrijp

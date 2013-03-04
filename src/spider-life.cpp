@@ -294,7 +294,7 @@ void drawborder()
 	cout<<"\\";
 }
 
-int main(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
 	int n=1;
 	while(n<argc){

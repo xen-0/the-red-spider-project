@@ -1,4 +1,3 @@
-
 // Copyright 2013 Charles Mita
 // licensed under the Red Spider Project license
 // See License.txt that shipped with your copy of this software for details
@@ -10,9 +9,6 @@ IMPORTANT:
 Need to port functionality to other platforms - currently Windows specific
 
 Some more command line arguments need to be passed (array size, starting arrangement, etc).
-
-If I can think of a sensible way of including a spherical option for the universe, I'll add it in.
-Maybe even a Universe based on the projective plane.
 
 I'd like to experiment with the rule set for Red vs Blue interactions.
 
@@ -31,14 +27,13 @@ Perhaps create some seeding patterns for creating the initial state
 
 using namespace std;
 
-int lengthx=40; //vertical
-int lengthy=80; //horizontal
-int generations = 400;
+int lengthx=66; //vertical
+int lengthy=66; //horizontal
 int redseed = 7;
 int blueseed = 7;
 int margin = 2;
 bool stop = false;
-int delay = 20;
+int delay = 0;
 char spacetype = 'T';
 
 int spawning(int countR, int countB)
@@ -78,6 +73,167 @@ void calcneighbourhood_klein(int i,int j,int** neighbourhood, int** universe)
             if (x < 0) { x +=lengthx; }
             if (y < 0) { y +=lengthy; }
             neighbourhood[k][l] = universe[x][y];
+        }
+    }
+}
+
+void calcneighbourhood_proj(int i,int j, int** neighbourhood, int** universe)
+{
+    int flag = 0;
+    flag |= (i==0 && j==0);
+    flag |= (i==0 && j==lengthy-1) <<1;
+    flag |= (i==lengthx-1 && j==0) <<2;
+    flag |= (i==lengthx-1 && j==lengthy-1) <<3;
+    switch(flag){
+      case 0:
+        for(int k=0;k<3;k++){
+            for(int l=0;l<3;l++){
+                int x = (i+k-1);
+                int y = (j+l-1);
+                if(-1==x || lengthx==x){
+                    x = (-1==x ? lengthx-1 : 0);
+                    y=lengthy-1-y;
+                }
+                if(-1==y || lengthy==y){
+                    y = (-1==y ? lengthy-1 : 0);
+                    x=lengthx-1-x;
+                }
+                neighbourhood[k][l] = universe[x][y];
+            }
+        }
+        return;
+      case 1:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k+1][l+1] = universe[k][l];
+            }
+        }
+        neighbourhood[0][1] = universe[lengthx-1][lengthy-1];
+        neighbourhood[0][2] = universe[lengthx-1][lengthy-2];
+        neighbourhood[2][0] = universe[lengthx-2][lengthy-1];
+        return;
+      case 2:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k+1][l]=universe[k][lengthy-2+l];
+            }
+        }
+        neighbourhood[0][0] = universe[lengthx-1][1];
+        neighbourhood[0][1] = universe[lengthx-1][0];
+        neighbourhood[2][2] = universe[lengthx-2][0];
+        return;
+      case 4:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k][l+1] = universe[lengthx-2+k][l];
+            }
+        }
+        neighbourhood[0][0] = universe[1][lengthy-1];
+        neighbourhood[0][1] = universe[0][lengthy-1];
+        neighbourhood[2][2] = universe[0][lengthy-2];
+        return;
+      case 8:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k][l]=universe[lengthx-2+k][lengthy-2+l];
+            }
+        }
+        neighbourhood[2][0] = universe[0][1];
+        neighbourhood[2][1] = universe[0][0];
+        neighbourhood[0][2] = universe[1][0];
+        return;
+      default:
+        return;
+    }
+}
+
+void calcneighbourhood_sphere(int i, int j, int** neighbourhood, int** universe)
+{
+    //this can only possibly make sense if lengthx==lengthy
+    int flag = 0;
+    flag |= (i==0 && j==0);
+    flag |= (i==0 && j==1) << 1;
+    flag |= (i==1 && j==0) << 2;
+    flag |= (i==lengthx-1 && j==lengthy-1) << 3;
+    flag |= (i==lengthx-1 && j==lengthy-2) << 4;
+    flag |= (i==lengthx-2 && j==lengthy-1) << 5;
+    
+    switch(flag){
+      case 0:
+        for(int k=0;k<3;k++){
+            for(int l=0;l<3;l++){
+                int x = (i + k - 1);
+                int y = (j + l - 1);
+                if(x<0){
+                    x=y;
+                    y=0;
+                }
+                if(y<0){
+                    y=x;
+                    x=0;
+                }
+                if(x==lengthx){
+                    x=y;
+                    y=lengthy-1;
+                }
+                if(y==lengthy){
+                    y=x;
+                    x=lengthx-1;
+                }
+                neighbourhood[k][l] = universe[x][y];
+            }
+        }
+        return;
+      case 1:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k+1][l+1] = universe[k][l];
+            }
+        }
+        return;
+      case 2:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<3;l++){
+                neighbourhood[k+1][l]=universe[k][l];
+             }
+         }
+        neighbourhood[0][2]=universe[2][0];
+        return;;
+      case 4:
+        for(int k=0;k<3;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k][l+1]=universe[k][l];
+            }
+        }
+        return;
+      case 8:
+        for(int k=0;k<2;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k][l] = universe[lengthx-2+k][lengthy-2+l];
+            }
+        }
+        return;
+      case 16:
+         for(int k=0;k<2;k++){
+             for(int l=0;l<3;l++){
+                neighbourhood[k][l] = universe[lengthx-2+k][lengthy-3+l];
+             }
+             neighbourhood[2][0] = universe[lengthx-3][lengthy-1];
+         }
+         return;
+      case 32:
+        for(int k=0;k<3;k++){
+            for(int l=0;l<2;l++){
+                neighbourhood[k][l]=universe[lengthx-3+k][lengthy-2+l];
+            }
+            neighbourhood[0][2] = universe[lengthx-1][lengthy-3];
+        }
+        return;
+      default:
+        for(int k=0;k<3;k++){
+            for(int l=0;l<3;l++){
+                neighbourhood[k][l] = 2;
+            }
         }
     }
 }
@@ -125,6 +281,11 @@ void nextgen(int** nextuniverse, int** universe)
               case 'T':
                 calcneighbourhood_torus(i,j,neighbourhood,universe);
                 break;
+              case 'S':
+                calcneighbourhood_sphere(i,j,neighbourhood,universe);
+                break;
+              case 'P':
+                calcneighbourhood_proj(i,j,neighbourhood,universe);
             }
             nextuniverse[i][j] = nextcolour(neighbourhood);
         }
@@ -170,21 +331,16 @@ void filluniverse(int ** universe)
     if(inputstate.is_open() && a<lengthx){
         while(getline(inputstate,row)){
             istringstream ss(row);
-            string field;
+            char cell;
             b=0;
-            while(getline(ss,field,',')){
+            while(ss.get(cell)){
                 if (b>=lengthy) break;
-                if(field.empty()){
-                    universe[a][b]=0;
-                    b++;
-                    continue;
-                }
-                switch(field.at(0))	{
+                switch(cell)	{
                   case '1':
                   case 'B':
-				  case 'b':
-				  case 'O':
-				  case 'o':
+                  case 'b':
+                  case 'O':
+                  case 'o':
                       universe[a][b] = 1;
                       break;
                   case '2':
@@ -196,7 +352,7 @@ void filluniverse(int ** universe)
                       break;
                   default:
                       universe[a][b]=0;
-                      break;
+                      break;            
                 }
                 b++;
             }
@@ -287,13 +443,43 @@ int main(int argc, char* argv[])
               case 'k':
                   spacetype='K';
                   break;
+              case 'S':
+              case 's':
+                  spacetype='S';
+                  break;
+              case 'p':
+              case 'P':
+                  spacetype='P';
+                  break;
               case 'x':
               case 'X':
-                  //TODO: retrive int from next argument
+                  int x;
+                  if (n==argc){
+                      cout<<"-X must be followed by an integer"<<endl;
+                      goto inv;
+                  }
+                  x = strtol(argv[n+1],new char*,10);
+                  if(x>3){lengthx=x;}
+                  else{
+                      cout<<"Array must be greater than 3x3"<<endl;
+                      goto inv;
+                  }
+                  n++;
                   break;
               case 'y':
               case 'Y':
-                  //TODO: retrieve int from next argument
+                  int y;
+                  if (n==argc){
+                      cout<<"-Y must be followed by an integer"<<endl;
+                      goto inv;
+                  }
+                  y = strtol(argv[n+1],new char*,10);
+                  if(y>3){lengthy=y;}
+                  else{
+                      cout<<"Array must be greater than 3x3"<<endl;
+                      goto inv;
+                  }
+                  n++;
                   break;
               default:
                   goto inv;
@@ -305,6 +491,10 @@ inv:
             cout<<"Invalid command argument"<<endl;
             return 0;
         }
+    }
+    if(spacetype=='S' && (lengthy!=lengthx)){
+        cout<<"Height and Width must be equal if -S argument is passed"<<endl;
+        return 0;
     }
     HANDLE hstdout = GetStdHandle( STD_OUTPUT_HANDLE );
     CONSOLE_SCREEN_BUFFER_INFO bufferinfo;

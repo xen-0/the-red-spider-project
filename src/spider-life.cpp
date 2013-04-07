@@ -8,8 +8,6 @@ TODO:
 IMPORTANT:
 Need to port functionality to other platforms - currently Windows specific
 
-Some more command line arguments need to be passed (array size, starting arrangement, etc).
-
 I'd like to experiment with the rule set for Red vs Blue interactions.
 
 Perhaps create some seeding patterns for creating the initial state
@@ -35,6 +33,7 @@ int margin = 2;
 bool stop = false;
 int delay = 0;
 char spacetype = 'T';
+char* filename;
 
 int spawning(int countR, int countB)
 {
@@ -321,10 +320,14 @@ void seeduniverse(int** universe)
     }
 }
 
-void filluniverse(int ** universe)
+bool filluniverse(int ** universe)
 {
     ifstream inputstate;
-    inputstate.open("start.txt", ifstream::in);
+    if (filename==0){
+        seeduniverse(universe);
+        return true;
+    }
+    inputstate.open(filename, ifstream::in);
     string row;
     int a = 0;
     int b=0;
@@ -359,9 +362,12 @@ void filluniverse(int ** universe)
             a++;
         }
         inputstate.close();
+        return true;
     }
     else{
-        seeduniverse(universe);
+        //seeduniverse(universe);
+        printf("Could not open file: %s \n",filename);
+        return false;
     }
 }
 
@@ -425,6 +431,35 @@ void drawborder()
     cout<<"\\";
 }
 
+void helpinfo(bool argsonly)
+{
+    char** arguments = new char*[5];
+    arguments[0] = (char*)"-X [n] -Y [n]: Specify array dimensions\n";
+    arguments[1] = (char*)"-T, -S, -K, -P: Specifiy topology (toroidal, spherical, Klein bottle, projective plane)\n";
+    arguments[2] = (char*)"-F [filename]: File name specifying the initial state\n";
+    arguments[3] = (char*)"-A: Show this list again\n";
+    arguments[4] = (char*)"-H: Show help\n";
+
+    char copyright[] = "Copyright Charles Mita 2013.\n"
+                      "Part of the Red Spider Project, licensed under the Red Spider Project License.\n"
+                      "See License.txt that shipped with your copy of the software for details.\n";
+
+    char preface[] = "Game of Spiders is an implementation of Conway's Game of Life and a variant, Highlife, using two distinct species.\n"
+                    "The starting arrangement can be specified using a text file that stores the initial state of the array.\n"
+                    "'X' denotes that a Highlife species lives in that cell.\n'O' denotes that a Conway species lives in that cell\n"
+                    "A period, '.' denotes that nothing lives in that cell.\n"
+                    "Cells not specified are left as empty/dead.\n"
+                    "The array is truncated or extended with empty cells to match the specified size.\n";
+    if (!argsonly) printf("\n\n%s\n",preface);
+    for(int i=0;i<5;i++){
+        printf("%s",arguments[i]);
+        //delete [] arguments[i];
+    }
+    delete [] arguments;
+    if(!argsonly) printf("\n%s\n",copyright);
+    return;
+}
+
 int main(int argc, char* argv[])
 {
     int n=1;
@@ -433,7 +468,11 @@ int main(int argc, char* argv[])
             switch(argv[n][1]){
               case 'h':
               case 'H':
-                  cout<<"Some help info here later"<<endl;
+                  helpinfo(false);
+                  return 0;
+              case 'A':
+              case 'a':
+                  helpinfo(true);
                   return 0;
               case 'T' :
               case 't':
@@ -454,7 +493,7 @@ int main(int argc, char* argv[])
               case 'x':
               case 'X':
                   int x;
-                  if (n==argc){
+                  if (n==argc-1){
                       cout<<"-X must be followed by an integer"<<endl;
                       goto inv;
                   }
@@ -469,7 +508,7 @@ int main(int argc, char* argv[])
               case 'y':
               case 'Y':
                   int y;
-                  if (n==argc){
+                  if (n==argc-1){
                       cout<<"-Y must be followed by an integer"<<endl;
                       goto inv;
                   }
@@ -479,6 +518,15 @@ int main(int argc, char* argv[])
                       cout<<"Array must be greater than 3x3"<<endl;
                       goto inv;
                   }
+                  n++;
+                  break;
+              case 'f':
+              case 'F':
+                  if (n==argc-1 || argv[n+1][0] == '-'){
+                      cout<<"-F must be followed by a file specification"<<endl;
+                      goto inv;
+                  }
+                  filename = argv[n+1];
                   n++;
                   break;
               default:
@@ -496,11 +544,6 @@ inv:
         cout<<"Height and Width must be equal if -S argument is passed"<<endl;
         return 0;
     }
-    HANDLE hstdout = GetStdHandle( STD_OUTPUT_HANDLE );
-    CONSOLE_SCREEN_BUFFER_INFO bufferinfo;
-    GetConsoleScreenBufferInfo( hstdout, &bufferinfo );
-    clearscreen();
-    drawborder();
     int** universe = new int*[lengthx];
     int** olduniverse = new int*[lengthx];
     for(int i=0;i<lengthx;i++)	{
@@ -512,47 +555,56 @@ inv:
         }
     }
     n=0;
-    filluniverse(universe);
-    int prev = 0;
-    _beginthread(rupt,0,NULL);
-    while(!stop){
-        n++;
-        coords(0,0); //to stop the console window scrolling down
-        cout<<" ";
-        for(int i=0;i<lengthx;i++){
-            for(int j=0;j<lengthy;j++){
-                if(olduniverse[i][j] != 0){
-                    coords(j+margin,i+margin);
-                    cout<<" ";
+    if(filluniverse(universe)){
+        HANDLE hstdout = GetStdHandle( STD_OUTPUT_HANDLE );
+        CONSOLE_SCREEN_BUFFER_INFO bufferinfo;
+        GetConsoleScreenBufferInfo( hstdout, &bufferinfo );
+        clearscreen();
+        drawborder();
+        int prev = 0;
+        _beginthread(rupt,0,NULL);
+        while(!stop){
+            n++;
+            coords(0,0); //to stop the console window scrolling down
+            cout<<" ";
+            for(int i=0;i<lengthx;i++){
+                for(int j=0;j<lengthy;j++){
+                    if(olduniverse[i][j] != 0){
+                        coords(j+margin,i+margin);
+                        cout<<" ";
+                    }
+                    switch(universe[i][j]){
+                      case 0:
+                          break;
+                      case 1:
+                          SetConsoleTextAttribute( hstdout, 0xB );
+                          coords(j+margin,i+margin);
+                          cout<<"O";
+                          break;
+                      case -1:
+                          SetConsoleTextAttribute( hstdout, 0xC);
+                          coords(j+margin,i+margin);
+                          cout<<"X";
+                          break;
+                      default:
+                          SetConsoleTextAttribute( hstdout, 0xA);
+                          coords(j+margin,i+margin);
+                          cout<<"Z";
+                    }
+                    SetConsoleTextAttribute( hstdout, bufferinfo.wAttributes );
                 }
-                switch(universe[i][j]){
-                  case 0:
-                      break;
-                  case 1:
-                      SetConsoleTextAttribute( hstdout, 0xB );
-                      coords(j+margin,i+margin);
-                      cout<<"O";
-                      break;
-                  case -1:
-                      SetConsoleTextAttribute( hstdout, 0xC);
-                      coords(j+margin,i+margin);
-                      cout<<"X";
-                      break;
-                  default:
-                      SetConsoleTextAttribute( hstdout, 0xA);
-                      coords(j+margin,i+margin);
-                      cout<<"Z";
-                }
-                SetConsoleTextAttribute( hstdout, bufferinfo.wAttributes );
+                cout<<endl;
             }
-            cout<<endl;
+            Sleep(delay);
+            int** temp;
+            temp = olduniverse;
+            olduniverse = universe;
+            universe=temp;
+            nextgen(universe,olduniverse);
         }
-        Sleep(delay);
-        int** temp;
-        temp = olduniverse;
-        olduniverse = universe;
-        universe=temp;
-        nextgen(universe,olduniverse);
+        cout<<"Press Enter to exit"<<endl;
+        cout<<n<<endl;
+        getchar();
     }
     for(int i=0;i<lengthx;i++){
         delete [] olduniverse[i];
@@ -560,10 +612,6 @@ inv:
     }
     delete [] olduniverse;
     delete [] universe;
-    cout<<"Press Enter to exit"<<endl;
-    cout<<n<<endl;
-    getchar();
     return 0;
 }
-
 

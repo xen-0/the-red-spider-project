@@ -41,7 +41,8 @@ public:
         srand( seed );
         for( int i = 0; i < boundX * boundY; i++ ) {
             int randNumber = rand() % 100;
-            univCurrent[i] = randNumber < probBlue ? STATE_BLUE : randNumber < probBlue + probRed ? STATE_RED : STATE_DEAD;
+            univCurrent[i] = randNumber < probBlue ? STATE_BLUE :
+                randNumber < probBlue + probRed ? STATE_RED : STATE_DEAD;
         }
         
     }
@@ -55,36 +56,40 @@ public:
         for ( int x = 0 ; x < boundX ; x++ ) {
             for ( int y = 0 ; y < boundY ; y++ ) {
                 rsCOORD_t point = { x , y };
-                univCurrent[ x * (boundX) + y ] = CalcState( point );
+                univCurrent[ x * boundY + y ] = CalcState( point );
             }
         }
     }
 
-    const void DrawUniverse( rsTerminal * terminal )
+    void DrawUniverse( rsTerminal * terminal ) const
     {
         rsCOORD_t cursor;
         for ( int x = 0 ; x < boundX ; x++ ) {
-            cursor.y = x + offsetY;
+            cursor.x = x + offsetX;
             for (int y = 0 ; y < boundY ; y++ ) {
-                cursor.x = y + offsetX;
-                terminal->SetCursorPosition( cursor );
-                switch ( univCurrent[ x * (boundX) + y] ) {
-                    case STATE_DEAD:
-                        if ( univPrev[ x * (boundX) + y ] != STATE_DEAD  ) {
+                cursor.y = y + offsetY;
+                //always draw the top left cell, to prevent screen scrolling on Windows
+                if ( ( x == 0 && y == 0 ) || univCurrent[ x * boundY + y ] != univPrev[ x * boundY + y ] ) {
+                    switch ( univCurrent[ x * boundY + y] ) {
+                        case STATE_DEAD:
+                            terminal->SetCursorPosition( cursor );
                             std::cout<<" ";
-                        }
-                        break;
-                    case STATE_BLUE:
-                        terminal->SetTextColour( COLOUR_BLUE | COLOUR_WHITE | COLOUR_GREEN );
-                        std::cout<<"O";
-                        break;
-                    case STATE_RED:
-                        terminal->SetTextColour( COLOUR_RED | COLOUR_WHITE );
-                        std::cout<<"X";
-                        break;
-                    default:
-                        terminal->SetTextColour( COLOUR_GREEN | COLOUR_WHITE );
-                        std::cout<<"Z";
+                            break;
+                        case STATE_BLUE:
+                            terminal->SetTextColour( COLOUR_BLUE | COLOUR_WHITE | COLOUR_GREEN );
+                            terminal->SetCursorPosition( cursor );
+                            std::cout<<"O";
+                            break;
+                        case STATE_RED:
+                            terminal->SetTextColour( COLOUR_RED | COLOUR_WHITE );
+                            terminal->SetCursorPosition( cursor );
+                            std::cout<<"X";
+                            break;
+                        default:
+                            terminal->SetTextColour( COLOUR_GREEN | COLOUR_WHITE );
+                            terminal->SetCursorPosition( cursor );
+                            std::cout<<"Z";
+                    }
                 }
             }
             std::cout<<std::endl;
@@ -93,7 +98,7 @@ public:
         //terminal->SetToDefault();
     }
 
-    const void DrawBorder ( rsTerminal * terminal )
+    void DrawBorder ( rsTerminal * terminal ) const
     {
         //only draw border if a margin has been set
         if ( offsetX == 0 || offsetY == 0 ) return;
@@ -141,14 +146,14 @@ protected:
     int boundX;
     int boundY;
 
-    virtual void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) = 0;
+    virtual void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) const = 0;
 
     cellState_t CalcState( const rsCOORD_t point )
     {
         int countB = 0;
         int countR = 0;
         cellState_t neighbourhood[3][3];
-        GetNeighbourhood(point, neighbourhood);
+        GetNeighbourhood( point, neighbourhood );
         for ( int i = 0 ; i < 3 ; i += 2 ) {
             for ( int j = 0; j < 3 ; j++ ) {
                 switch ( neighbourhood[i][j] ) {
@@ -188,7 +193,7 @@ class rsUniverseTorus: public rsUniverse
 public:
     rsUniverseTorus( const int x, const int y ) : rsUniverse( x, y ) {};
 private:
-    void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] )
+    void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) const
     {
         for ( int i = 0 ; i < 3 ; i++ ) {
             for ( int j = 0; j < 3 ; j++ ) {
@@ -196,30 +201,226 @@ private:
                 int y = ( point.y + j - 1 ) % boundY;
                 if ( x < 0 ) { x += boundX; }
                 if ( y < 0 ) { y += boundY; }
-                neighbourhood[i][j] = univPrev[ x * (boundX) + y ];
+                neighbourhood[i][j] = univPrev[ x * boundY + y ];
             }
         }
+    }
+};
+
+class rsUniverseKlein: public rsUniverse
+{
+public:
+    rsUniverseKlein( const int x, const int y ) : rsUniverse( x, y ) {};
+private:
+    void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) const
+    {
+        for ( int i = 0; i < 3; i++ ) {
+            for ( int j = 0; j < 3; j++ ) {
+                int x = ( point.x + i - 1 );
+                int y;
+                if ( -1 == x || boundX == x ) {
+                    y = ( boundY - point.y - j ) % boundY;
+                } else {
+                    y = ( point.y + j + - 1 ) % boundY;
+                }
+                x %= boundX;
+                if ( x < 0 ) { x += boundX; }
+                if ( y < 0 ) { y += boundY; }
+                neighbourhood[i][j] = univPrev[ x * boundY + y];
+            }
+        }
+    }
+};
+
+class rsUniverseSphere: public rsUniverse
+{
+public:
+        rsUniverseSphere( const int x ) : rsUniverse( x, x ) {};
+private:
+    void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) const
+    {
+        enum univPolePositions_t { NORMAL, NORTH_0, NORTH_X, NORTH_Y, SOUTH_0, SOUTH_X, SOUTH_Y };
+        univPolePositions_t positions = NORMAL;
+        if ( point.x == 0 && point.y == 0 ) positions = NORTH_0;
+        if ( point.x == 0 && point.y == 1 ) positions = NORTH_Y;
+        if ( point.x == 1 && point.y == 0 ) positions = NORTH_X;
+        if ( point.x == boundX - 1 && point.y == boundY - 1 ) positions = SOUTH_0;
+        if ( point.x == boundX - 1 && point.y == boundY - 2 ) positions = SOUTH_Y;
+        if ( point.x == boundX - 2 && point.y == boundY - 1 ) positions = SOUTH_X;
+
+        switch ( positions ) {
+        case NORMAL:
+            for ( int i = 0; i < 3; i++ ){
+                for ( int j = 0; j < 3; j++ ) {
+                    int x = point.x + i - 1;
+                    int y = point.y + j - 1;
+                    if ( x < 0 ) {
+                        x = y;
+                        y = 0;
+                    }
+                    if ( y < 0 ) {
+                        y = x;
+                        x = 0;
+                    }
+                    if ( x == boundX ) {
+                        x = y;
+                        y = boundY - 1;
+                    }
+                    if ( y == boundY ) {
+                        y = x;
+                        x = boundX - 1;
+                    }
+                    neighbourhood[i][j] = univPrev[ x * boundY + y ];
+                }
+            }
+            break;
+        case NORTH_0:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[ i + 1 ][ j + 1 ] = univPrev[ i * boundY + j ];
+                }
+            }
+            break;
+        case NORTH_Y:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 3; j++ ) {
+                    neighbourhood[ i + 1 ][j] = univPrev[ i * boundY + j ];
+                }
+            }
+            neighbourhood[0][2] = univPrev[ 2 * boundX + 0 ];
+            break;
+        case NORTH_X:
+            for ( int i = 0; i < 3; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[i][ j + 1 ] = univPrev[ i * boundY+ j ];
+                }
+            }
+            neighbourhood[2][0] = univPrev[2]; //this is wrong?
+            break;
+        case SOUTH_0:
+            for ( int i = 0; i < 2; i++ ) {
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[i][j] = univPrev[ (boundX - 2 + i) * boundY + (boundY - 2 + j) ];
+                }
+            }
+            break;
+        case SOUTH_Y:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 3; j++ ) {
+                    neighbourhood[i][j] = univPrev[ (boundX - 2 + i) * boundY + (boundY - 3 + j) ];
+                }
+            }
+            neighbourhood[2][0] = univPrev[ (boundX - 3) * boundY + (boundY - 1) ];
+            break;
+        case SOUTH_X:
+            for ( int i = 0; i < 3; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[i][j] = univPrev[ (boundX - 3 + i) * boundY + (boundY - 2 + j) ];
+                }
+            }
+            neighbourhood[0][2] = univPrev[ (boundX - 1) * boundY + (boundY - 3) ];
+            break;
+        }
+        return;
+    }
+};
+
+class rsUniverseProj: public rsUniverse
+{
+public:
+    rsUniverseProj( const int x, const int y ) : rsUniverse( x, y ) {};
+private:
+    void GetNeighbourhood( const rsCOORD_t point, cellState_t neighbourhood[3][3] ) const
+    {
+        enum univCorner_t { NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT };
+        univCorner_t corner = NONE;
+        if ( point.x == 0 && point.y == 0 ) corner = TOP_LEFT;
+        if ( point.x == 0 && point.y == boundY - 1 ) corner = TOP_RIGHT;
+        if ( point.x == boundX - 1 && point.y == 0 ) corner = BOTTOM_LEFT;
+        if ( point.x == boundX - 1 && point.y == boundY - 1 ) corner = BOTTOM_RIGHT;
+        switch ( corner ) {
+        case NONE:
+            for ( int i = 0; i < 3; i++ ){
+                for ( int j = 0; j < 3; j++ ) {
+                    int x = point.x + i - 1;
+                    int y = point.y + j - 1;
+                    if ( -1 == x || boundX == x ) {
+                        x = ( -1 == x ? boundX - 1 : 0 );
+                        y = boundY - 1 - y;
+                    }
+                    if ( -1 == y || boundY == y ) {
+                        y = ( -1 == y ? boundY - 1 : 0 );
+                        x = boundX - 1 - x;
+                    }
+                    neighbourhood[i][j] = univPrev[ x * boundY + y ];
+                }
+            }
+            break;
+        case TOP_LEFT:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[ i + 1 ][ j + 1 ] = univPrev[ i * boundY + j ];
+                }
+            }
+            neighbourhood[0][1] = univPrev[ (boundX - 1) * boundY + (boundY - 1) ];
+            neighbourhood[0][2] = univPrev[ (boundX - 1) * boundY + (boundY - 2) ];
+            neighbourhood[2][0] = univPrev[ (boundX - 2) * boundY + (boundY - 1) ];
+            break;
+        case TOP_RIGHT:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[ i + 1 ][j] = univPrev[ i * boundY + boundY - 2 + j ];
+                }
+            }
+            neighbourhood[0][0] = univPrev[ (boundX - 1) * boundY + 1 ];
+            neighbourhood[0][1] = univPrev[ (boundX - 1) * boundY + 0 ];
+            neighbourhood[2][2] = univPrev[ (boundX - 2) * boundY + 0 ];
+            break;
+        case BOTTOM_LEFT:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[i][j] = univPrev[ (boundX - 2 + i) * boundY + j ];
+                }
+            }
+            neighbourhood[0][0] = univPrev[ 1 * boundY + boundY - 1 ];
+            neighbourhood[0][1] = univPrev[ 0 * boundY + boundY - 1 ];
+            neighbourhood[2][2] = univPrev[ 0 * boundY + boundY - 2 ];
+            break;
+        case BOTTOM_RIGHT:
+            for ( int i = 0; i < 2; i++ ){
+                for ( int j = 0; j < 2; j++ ) {
+                    neighbourhood[i][j] = univPrev[ (boundX - 2 + i) * boundY + boundY - 2 + j ];
+                }
+            }
+            neighbourhood[2][0] = univPrev[1];
+            neighbourhood[2][1] = univPrev[0];
+            neighbourhood[0][2] = univPrev[1 * boundY];
+            break;
+        }
+        return;
     }
 };
 
 int main( int argc, char* argv[] )
 {
     rsUniverse * pUniverse;
-    rsUniverseTorus uni(66, 66);
+    rsUniverseTorus uni(60,40);
     pUniverse = &uni;
     //universe.SeedUniverse( time(0) );
     pUniverse->SeedUniverse( 7823641 );
-    pUniverse->offsetX = 1;
-    pUniverse->offsetY = 1;
+    pUniverse->offsetX = 5;
+    pUniverse->offsetY = 2;
     rsTerminal terminal;
     terminal.ClearTerminal();
     terminal.HideCursor();
     pUniverse->DrawBorder( &terminal );
-    for( int i = 0; i < 100; i++ ) {
+    for( int i = 0; i < 300; i++ ) {
         pUniverse->DrawUniverse( &terminal );
         pUniverse->NextState();
+        //Sleep(33);
+        //getchar();
     }
-    std::cout<<"DONE"<<std::endl;
+    //std::cout<<"DONE"<<std::endl;
     terminal.ShowCursor();
     terminal.SetToDefault();
     //getchar();

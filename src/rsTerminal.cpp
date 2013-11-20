@@ -30,7 +30,7 @@ void rsTerminal::ClearTerminal()
     #endif
 }
 
-void rsTerminal::SetCursorPosition(rsCOORD_t pos)
+void rsTerminal::SetCursorPosition( rsCOORD_t pos )
 {
     #ifdef _WIN32
     COORD position = { pos.x, pos.y };
@@ -82,9 +82,9 @@ void rsTerminal::HideCursor()
     #ifdef _WIN32
     CONSOLE_CURSOR_INFO cursor;
     cursor.bVisible = false;
-    SetConsoleCursorInfo(hStdOut, &cursor);
+    SetConsoleCursorInfo( hStdOut, &cursor );
     #else
-    printf( "\033[?25hl" );
+    printf( "\033[?25l" );
     #endif
 }
 
@@ -93,9 +93,9 @@ void rsTerminal::ShowCursor()
     #ifdef _WIN32
     CONSOLE_CURSOR_INFO cursor;
     cursor.bVisible = true;
-    SetConsoleCursorInfo(hStdOut, &cursor);
+    SetConsoleCursorInfo( hStdOut, &cursor );
     #else
-    printf( "\033[?25hh" );
+    printf( "\033[?25h" );
     #endif
 }
 

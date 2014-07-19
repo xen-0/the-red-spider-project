@@ -38,7 +38,7 @@ void rsTerminal::SetCursorPosition( rsCOORD_t pos )
     #else
     //POSIX terminal is indexed from 1
     //and oriented other way
-    printf( "\033[%d;%dH", pos.y + 1, pos.x + 1);
+    printf( "\033[%d;%dH", pos.y + 1, pos.x + 1 );
     #endif
 }
 

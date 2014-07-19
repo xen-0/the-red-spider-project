@@ -1,6 +1,8 @@
 #include <iostream>
 #include <ctime>
 #include <cstdlib>
+#include <thread>
+#include <chrono>
 #include "rsTerminal.h"
 #include "rsTypes.h"
 
@@ -70,7 +72,7 @@ public:
                 cursor.y = y + offsetY;
                 //always draw the top left cell, to prevent screen scrolling on Windows
                 if ( ( x == 0 && y == 0 ) || univCurrent[ x * boundY + y ] != univPrev[ x * boundY + y ] ) {
-                    switch ( univCurrent[ x * boundY + y] ) {
+                    switch ( univCurrent[ x * boundY + y ] ) {
                         case STATE_DEAD:
                             terminal->SetCursorPosition( cursor );
                             std::cout<<" ";
@@ -92,10 +94,8 @@ public:
                     }
                 }
             }
-            std::cout<<std::endl;
+            std::cout << std::flush;
         }
-        //std::cout<<std::endl;
-        //terminal->SetToDefault();
     }
 
     void DrawBorder ( rsTerminal * terminal ) const
@@ -403,10 +403,11 @@ private:
 
 int main( int argc, char* argv[] )
 {
-    rsUniverse * pUniverse;
-    rsUniverseTorus uni(60,40);
+    rsUniverse* pUniverse;
+    int sizeX = 60;
+    int sizeY = 30;
+    rsUniverseTorus uni( sizeX, sizeY );
     pUniverse = &uni;
-    //universe.SeedUniverse( time(0) );
     pUniverse->SeedUniverse( 7823641 );
     pUniverse->offsetX = 5;
     pUniverse->offsetY = 2;
@@ -417,12 +418,13 @@ int main( int argc, char* argv[] )
     for( int i = 0; i < 300; i++ ) {
         pUniverse->DrawUniverse( &terminal );
         pUniverse->NextState();
-        //Sleep(33);
-        //getchar();
+        std::this_thread::sleep_for( std::chrono::milliseconds(33) );
     }
-    //std::cout<<"DONE"<<std::endl;
     terminal.ShowCursor();
+    int posX = 0;
+    int posY = uni.offsetY + sizeY + 2;
+    rsCOORD_t cursor = { posX, posY };
+    terminal.SetCursorPosition( cursor );
     terminal.SetToDefault();
-    //getchar();
     return 0;
 }

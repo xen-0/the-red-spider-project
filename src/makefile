@@ -1,5 +1,5 @@
 CC=g++
-CFLAGS=-O3 -I../include -std=c++11
+CFLAGS=-O3 -I../include -std=c++11 -pthread
 
 IDIR = ../include
 ODIR = ../build

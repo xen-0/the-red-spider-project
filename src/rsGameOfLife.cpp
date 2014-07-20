@@ -401,11 +401,19 @@ private:
     }
 };
 
+void Interrupt( bool* stop )
+{
+    getchar();
+    *stop = true;
+    return;
+}
+
 int main( int argc, char* argv[] )
 {
     rsUniverse* pUniverse;
     int sizeX = 60;
     int sizeY = 30;
+    int period = 60;
     rsUniverseTorus uni( sizeX, sizeY );
     pUniverse = &uni;
     pUniverse->SeedUniverse( 7823641 );
@@ -414,12 +422,20 @@ int main( int argc, char* argv[] )
     rsTerminal terminal;
     terminal.ClearTerminal();
     terminal.HideCursor();
+    bool stop = false;
+    std::thread interruptThread( Interrupt, &stop );
     pUniverse->DrawBorder( &terminal );
-    for( int i = 0; i < 300; i++ ) {
+    //for( int i = 0; i < 300; i++ ) {
+    while ( !stop ) {
+        auto startTime = std::chrono::steady_clock::now();
         pUniverse->DrawUniverse( &terminal );
         pUniverse->NextState();
-        std::this_thread::sleep_for( std::chrono::milliseconds(33) );
+        auto endTime = std::chrono::steady_clock::now();
+        int timeDiff = std::chrono::duration_cast<std::chrono::microseconds>( endTime - startTime ).count();
+        int delay = period > timeDiff ? period - timeDiff : period;
+        std::this_thread::sleep_for( std::chrono::milliseconds( delay ) );
     }
+    interruptThread.join();
     terminal.ShowCursor();
     int posX = 0;
     int posY = uni.offsetY + sizeY + 2;

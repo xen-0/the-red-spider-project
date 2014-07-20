@@ -1,10 +1,20 @@
 #include <iostream>
+#include <exception>
 #include <ctime>
 #include <cstdlib>
 #include <thread>
 #include <chrono>
+#include <vector>
+#include <string>
 #include "rsTerminal.h"
 #include "rsTypes.h"
+
+enum universeType_t {
+    TORUS,
+    KLEIN,
+    SPHERE,
+    PROJ
+};
 
 enum cellState_t {
     STATE_RED,
@@ -408,15 +418,68 @@ void Interrupt( bool* stop )
     return;
 }
 
+void SetupFromArgs( std::vector<std::string> args, int* sizeX, int* sizeY, int* period, rsUniverse** universe, int* seed )
+{
+    universeType_t univType = TORUS;
+    for ( auto it = args.begin(); it != args.end(); it++ ) {
+        if ( (*it)[0] == '-' ) {
+            if ( it + 1 == args.end() ) {
+                throw std::exception();
+            }
+            std::string type;
+            std::string sizeString;
+            switch ( (*it)[1] ) {
+                case 'U':
+                    type = *( it + 1 );
+                    if ( type == "K" || type == "k" ) univType = KLEIN;
+                    if ( type == "S" || type == "s" ) univType = SPHERE;
+                    if ( type == "P" || type == "p" ) univType = PROJ;
+                    break;
+                case 'X':
+                    sizeString = *( it + 1 );
+                    *sizeX = std::stoi( sizeString );
+                    break;
+                case 'Y':
+                    sizeString = *( it + 1 );
+                    *sizeY = std::stoi( sizeString );
+                    break;
+                case 'P':
+                    sizeString = *( it + 1 );
+                    *period = std::stoi( sizeString );
+                    break;
+                case 'S':
+                    sizeString = *( it + 1 );
+                    *seed = std::stoi( sizeString );
+                    break;
+            }
+        }
+    }
+    switch (univType) {
+        case TORUS:
+            *universe = new rsUniverseTorus( *sizeX, *sizeY );
+            break;
+        case KLEIN:
+            *universe = new rsUniverseKlein( *sizeX, *sizeY );
+            break;
+        case SPHERE:
+            *universe = new rsUniverseSphere( *sizeX );
+            break;
+        case PROJ:
+            *universe = new rsUniverseProj( *sizeX, *sizeY );
+            break;
+    }
+}
+
 int main( int argc, char* argv[] )
 {
     rsUniverse* pUniverse;
     int sizeX = 60;
     int sizeY = 30;
     int period = 60;
-    rsUniverseTorus uni( sizeX, sizeY );
-    pUniverse = &uni;
-    pUniverse->SeedUniverse( 7823641 );
+    int seed = 7823641;
+    std::vector<std::string> args( argv, argv + argc );
+    SetupFromArgs( args, &sizeX, &sizeY, &period, &pUniverse, &seed );
+    pUniverse->SeedUniverse( seed );
     pUniverse->offsetX = 5;
     pUniverse->offsetY = 2;
     rsTerminal terminal;
@@ -425,7 +488,6 @@ int main( int argc, char* argv[] )
     bool stop = false;
     std::thread interruptThread( Interrupt, &stop );
     pUniverse->DrawBorder( &terminal );
-    //for( int i = 0; i < 300; i++ ) {
     while ( !stop ) {
         auto startTime = std::chrono::steady_clock::now();
         pUniverse->DrawUniverse( &terminal );
@@ -438,7 +500,7 @@ int main( int argc, char* argv[] )
     interruptThread.join();
     terminal.ShowCursor();
     int posX = 0;
-    int posY = uni.offsetY + sizeY + 2;
+    int posY = pUniverse->offsetY + sizeY + 2;
     rsCOORD_t cursor = { posX, posY };
     terminal.SetCursorPosition( cursor );
     terminal.SetToDefault();

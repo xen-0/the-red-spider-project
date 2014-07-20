@@ -418,10 +418,26 @@ void Interrupt( bool* stop )
     return;
 }
 
-void SetupFromArgs( std::vector<std::string> args, int* sizeX, int* sizeY, int* period, rsUniverse** universe, int* seed )
+void SetupFromArgs(
+        std::vector<std::string> args,
+        int* sizeX,
+        int* sizeY,
+        int* period,
+        rsUniverse** universe,
+        int* seed,
+        bool* printHelp,
+        bool* printArgs )
 {
     universeType_t univType = TORUS;
     for ( auto it = args.begin(); it != args.end(); it++ ) {
+        if ( *it == "-H" || *it == "-h" || *it == "--help" ) {
+            *printHelp = true;
+            return;
+        }
+        if ( *it == "-A" || *it == "-a" ) {
+            *printArgs = true;
+            return;
+        }
         if ( (*it)[0] == '-' ) {
             if ( it + 1 == args.end() ) {
                 throw std::exception();
@@ -470,6 +486,32 @@ void SetupFromArgs( std::vector<std::string> args, int* sizeX, int* sizeY, int* 
     }
 }
 
+void PrintHelp( bool argsOnly )
+{
+    std::string arguments[4];
+    arguments[0] = "-X [n] -Y [n] : specify dimensions";
+    arguments[1] = "-U [T, K, S, P] : specify topology (toroidal, klein, spherical, projective plane)";
+    arguments[2] = "-A : list arguments";
+    arguments[3] = "-H : show full help";
+
+    std::string copyright = "Copyright Charles Mita 2014.\n"
+                            "Part of the Red Spider Project, licensed under the Red Spider Project License.\n"
+                            "See License.txt that shipped with your copy of the software for details.\n";
+
+    std::string preface = "Game of Spiders is an implementation of Conway's Game of Life"
+                          " and a variant, Highlife, using two distinct species.\n"
+                          "File based starting arrangements coming at some point.\n";
+
+    if ( !argsOnly ) {
+        std::cout << preface << std::endl;
+        std::cout << copyright << std::endl;
+    }
+    for ( int i = 0; i < 4; i++ ) {
+        std::cout << arguments[i] << std::endl;
+    }
+    return;
+}
+
 int main( int argc, char* argv[] )
 {
     rsUniverse* pUniverse;
@@ -477,8 +519,16 @@ int main( int argc, char* argv[] )
     int sizeY = 30;
     int period = 60;
     int seed = 7823641;
+    bool printHelp = false;
+    bool printArgs = false;
     std::vector<std::string> args( argv, argv + argc );
-    SetupFromArgs( args, &sizeX, &sizeY, &period, &pUniverse, &seed );
+    SetupFromArgs( args, &sizeX, &sizeY, &period, &pUniverse, &seed, &printHelp, &printArgs );
+
+    if ( printArgs || printHelp ) {
+        PrintHelp( !printHelp );
+        return 0;
+    }
+
     pUniverse->SeedUniverse( seed );
     pUniverse->offsetX = 5;
     pUniverse->offsetY = 2;

@@ -1,9 +1,3 @@
-# Base directories
-/bin
-/lib
-/build
-/work
-
 # prepend '__' to create temp files/dirs
 __*
 

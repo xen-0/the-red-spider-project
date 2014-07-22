@@ -56,7 +56,6 @@ public:
             univCurrent[i] = randNumber < probBlue ? STATE_BLUE :
                 randNumber < probBlue + probRed ? STATE_RED : STATE_DEAD;
         }
-        
     }
 
     void NextState()
@@ -149,7 +148,7 @@ public:
         terminal->SetCursorPosition(point);
         std::cout<<"\\";
     }
-    
+
 protected:
     cellState_t* univCurrent;
     cellState_t* univPrev;
@@ -488,11 +487,12 @@ void SetupFromArgs(
 
 void PrintHelp( bool argsOnly )
 {
-    std::string arguments[4];
+    std::string arguments[5];
     arguments[0] = "-X [n] -Y [n] : specify dimensions";
     arguments[1] = "-U [T, K, S, P] : specify topology (toroidal, klein, spherical, projective plane)";
     arguments[2] = "-A : list arguments";
     arguments[3] = "-H : show full help";
+    arguments[4] = "-P : set minimum time period between frames";
 
     std::string copyright = "Copyright Charles Mita 2014.\n"
                             "Part of the Red Spider Project, licensed under the Red Spider Project License.\n"
@@ -502,13 +502,15 @@ void PrintHelp( bool argsOnly )
                           " and a variant, Highlife, using two distinct species.\n"
                           "File based starting arrangements coming at some point.\n";
 
+    std::cout << std::endl;
     if ( !argsOnly ) {
         std::cout << preface << std::endl;
         std::cout << copyright << std::endl;
     }
-    for ( int i = 0; i < 4; i++ ) {
+    for ( int i = 0; i < 5; i++ ) {
         std::cout << arguments[i] << std::endl;
     }
+    std::cout << std::endl;
     return;
 }
 
